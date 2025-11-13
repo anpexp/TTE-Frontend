@@ -6,7 +6,7 @@ export default function Carousel({ source }: { source: string }) {
   const [images, setImages] = useState<CarouselItem[]>([]);
 
   useEffect(() => {
-    // fetch dynamically (mocked with placeholder)
+   
     fetch(source)
       .then(r => r.json())
       .then(data => setImages(data))
@@ -18,7 +18,7 @@ export default function Carousel({ source }: { source: string }) {
         ])
       );
   }, [source]);
-
+//se puede meter dentro del use memo.
   const [index, setIndex] = useState(0);
   const next = () => setIndex((i) => (i + 1) % images.length);
   const prev = () => setIndex((i) => (i - 1 + images.length) % images.length);

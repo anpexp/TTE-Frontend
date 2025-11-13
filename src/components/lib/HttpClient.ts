@@ -1,5 +1,5 @@
-// src/lib/HttpClient.ts
-import axios, { type AxiosInstance } from "axios";
+// src/components/lib/HttpClient.ts
+import axios, { AxiosHeaders, CanceledError, type AxiosInstance } from "axios";
 
 export class HttpClient {
   private static _instance: HttpClient | null = null;
@@ -11,20 +11,39 @@ export class HttpClient {
 
     this.client = axios.create({
       baseURL: base,
-      headers: { "Content-Type": "application/json" },
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
       timeout: 10000,
       withCredentials: true,
     });
 
     this.client.interceptors.request.use((config) => {
+      const url = `${config.baseURL || ""}${config.url || ""}`;
+      const isAuth = /\/api\/(?:Auth\/)?(login|register)/i.test(url);
+      const onLogin = typeof window !== "undefined" && /^\/login(?:\/|$)/i.test(window.location.pathname);
+
+      if (!config.headers) config.headers = new AxiosHeaders();
+
+      if (isAuth || onLogin) {
+        (config.headers as AxiosHeaders).delete("Authorization");
+        if (onLogin && /\/api\/Cart(\/|$)/i.test(url)) {
+          return Promise.reject(new CanceledError("blocked on /login"));
+        }
+        return config;
+      }
+
       try {
         const t =
           localStorage.getItem("jwt_token") ||
+          sessionStorage.getItem("jwt_token") ||
           localStorage.getItem("tte_token") ||
           localStorage.getItem("token") ||
-          localStorage.getItem("access_token");
-        if (t) config.headers = { ...(config.headers || {}), Authorization: t.startsWith("Bearer ") ? t : `Bearer ${t}` } as any;
+          localStorage.getItem("access_token") ||
+          "";
+        const v = t ? (t.startsWith("Bearer ") ? t : `Bearer ${t}`) : "";
+        if (v) (config.headers as AxiosHeaders).set("Authorization", v);
+        else (config.headers as AxiosHeaders).delete("Authorization");
       } catch {}
+
       return config;
     });
 
@@ -32,9 +51,7 @@ export class HttpClient {
   }
 
   static get instance(): AxiosInstance {
-    if (!HttpClient._instance) {
-      HttpClient._instance = new HttpClient();
-    }
+    if (!HttpClient._instance) HttpClient._instance = new HttpClient();
     return HttpClient._instance.client;
   }
 }

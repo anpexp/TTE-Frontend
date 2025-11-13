@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { useAuth } from "@/components/auth/AuthContext";
@@ -24,8 +24,8 @@ export default function LoginPage() {
     const canSubmit = email.trim() !== "" && pwd.trim() !== "";
     const router = useRouter();
     const [remember, setRemember] = useState(false);
-    const pathname = usePathname();
     const [showPassword, setShowPassword] = useState(false);
+    const searchParams = useSearchParams();
 
     const {
         register,
@@ -42,13 +42,15 @@ export default function LoginPage() {
     //   };
 
     const onSubmit = async (data: LoginForm) => {
-        console.log("🚀 ~ onSubmit ~ data:", data)
+       
         try {
             const res = await login(data.email, data.password, remember);
             if (res) {
-                console.log("🚀 ~ onSubmit ~ res:", res)
-                const redirect = (res as any).redirectTo ?? pathname ?? "/";
-                
+              
+                const from = (searchParams.get("from"));
+                const redirect = (res as any).redirectTo ?? from ?? "/";
+              
+
                 // navigate(redirect, { replace: true });
                 router.push(redirect)
             }

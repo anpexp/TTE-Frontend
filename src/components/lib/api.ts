@@ -6,20 +6,15 @@ export type FetchOptions = {
   body?: any;
 };
 
-/**
- * Compatibility wrapper so existing code that used `authFetch` keeps working, but
- * uses the axios singleton under the hood. Returns response.data and throws a
- * normalized Error with `status` and `body` properties on failures.
- */
 export async function authFetch<T = any>(input: string, init?: FetchOptions): Promise<T> {
-  const url = input;
+  const base = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
+  const isAbs = /^https?:\/\//i.test(input);
+  const path = input.startsWith("/") ? input : `/${input}`;
+  const url = isAbs ? input : `${base}${path}`;
   try {
     const method = (init?.method ?? "GET").toLowerCase();
-    const config: any = { url, method };
-
-    if (init?.headers) config.headers = init.headers;
+    const config: any = { url, method, headers: init?.headers };
     if (init?.body !== undefined) {
-      // If body is a JSON string (previous behavior), try to parse it, otherwise send as-is.
       if (typeof init.body === "string") {
         try {
           config.data = JSON.parse(init.body);
@@ -30,9 +25,7 @@ export async function authFetch<T = any>(input: string, init?: FetchOptions): Pr
         config.data = init.body;
       }
     }
-
     const response = await http.request<T>(config);
-    console.log("🚀 ~ authFetch ~ response:", response)
     return response.data as T;
   } catch (err: any) {
     const status = err?.response?.status;
@@ -40,7 +33,6 @@ export async function authFetch<T = any>(input: string, init?: FetchOptions): Pr
     const e: any = new Error(body?.message ?? body ?? err?.message ?? "HTTP error");
     e.status = status;
     e.body = body;
-    console.log(e);
     throw e;
   }
 }
