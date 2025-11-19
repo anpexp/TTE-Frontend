@@ -4,25 +4,27 @@ import HeaderShell from "@/components/dev/HeaderShell";
 import { CartProvider } from "@/components/context/CartContext";
 import { useAuth } from "@/components/auth/AuthContext";
 
-const isShopper = (r?: string) => (r ?? "").toLowerCase() === "shopper";
+const isShopper = (r?: string) => (r ?? "").toLowerCase().includes("shopper");
 
 export default function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { user } = useAuth();
+  const { user, ready } = useAuth();
+
+  if (!ready) return null;
+
   const onLogin = pathname?.startsWith("/login");
   if (onLogin) return <>{children}</>;
-  if (isShopper(user?.role)) {
-    return (
-      <CartProvider>
-        <HeaderShell />
-        {children}
-      </CartProvider>
-    );
-  }
-  return (
+
+  const content = (
     <>
       <HeaderShell />
       {children}
     </>
   );
+
+  if (isShopper(user?.role)) {
+    return <CartProvider>{content}</CartProvider>;
+  }
+
+  return content;
 }
