@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "media.istockphoto.com" },
       { protocol: "https", hostname: "images.unsplash.com" },
       { protocol: "https", hostname: "picsum.photos" },
+      { protocol: "https", hostname: "picsum.dev" },
       { protocol: "https", hostname: "m.media-amazon.com" },
       { protocol: "https", hostname: "i.imgur.com" },
       { protocol: "https", hostname: "www.bing.com" },

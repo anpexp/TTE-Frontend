@@ -1,18 +1,17 @@
-// src/pages/CreateProductPage.tsx
+"use client";
+// Next.js adaptation (original Vite + react-router version)
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "../auth/AuthContext";
+import { useAuth } from "@/components/auth/AuthContext";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-//import Input from "../components/atoms/Input";
-//import Button from "../components/atoms/Button";//
-import { CategoryService } from "../lib/CategoryService";
-import { ProductService } from "../lib/ProductService";
-import type { ProductDraft } from "../lib/ProductService";
+import { Input, Button } from "@/components/atoms";
+import { CategoryService } from "@/components/lib/CategoryService";
+import { ProductService, type ProductDraft } from "@/components/lib/ProductService";
 
 /** Form validation schema */
-const schema = z.object({
+const productFormSchema = z.object({
   title: z.string().min(2, "Title is required"),
   price: z.coerce.number().positive("Price must be greater than 0"),
   categoryId: z.string().min(1, "Category is required"),
@@ -21,19 +20,19 @@ const schema = z.object({
   inventory: z.coerce.number().int().nonnegative("Inventory must be 0 or more"),
 });
 
-type FormData = z.infer<typeof schema>;
+type ProductFormData = z.infer<typeof productFormSchema>;
 
 export default function CreateProductPage() {
-  const navigate = useNavigate();
+  const router = useRouter();
 
   // Local state
-  const [categories, setCategories] = useState<Array<{ id: string; name: string }>>([]);
+  const [categories, setCategories] = useState<Array<{ id: string; name: string; slug?: string }>>([]);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [submitOk, setSubmitOk] = useState<string | null>(null);
 
   // Use central auth context instead of ad-hoc localStorage values
   const { user } = useAuth();
-  const rawRole = (user?.role ?? "").toString().toLowerCase();
+  const rawRole = (user?.role ?? "").toLowerCase();
   const isEmployee = rawRole.includes("employee");
   const isAdmin = rawRole.includes("superadmin") || rawRole.includes("admin");
   const role: "employee" | "admin" | "" = isAdmin ? "admin" : (isEmployee ? "employee" : "");
@@ -43,31 +42,30 @@ export default function CreateProductPage() {
   useEffect(() => {
     if (!user) return; // wait for AuthContext
     if (role !== "employee" && role !== "admin") {
-      navigate("/", { replace: true });
+      router.replace("/");
     }
-  }, [navigate, role, user]);
+  }, [router, role, user]);
 
   /** Load categories (must exist for a valid product) */
   useEffect(() => {
+    let active = true;
     (async () => {
       try {
         const list = await CategoryService.getCategories();
+        if (!active) return;
         const arr = Array.isArray(list) ? list : [];
-        setCategories(arr.map((c: any) => ({ id: String(c.id), name: c.name })));
+        setCategories(arr.map((c: any) => ({ id: String(c.id), name: c.name, slug: c.slug })));
       } catch (err) {
-        console.error("Error loading categories", err);
-        setCategories([]);
+        if (active) setCategories([]);
       }
     })();
+    return () => { active = false; };
   }, []);
 
   // RHF setup
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors, isSubmitting },
-  } = useForm<FormData>({ resolver: zodResolver(schema) });
+  const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm<ProductFormData>({
+    resolver: zodResolver(productFormSchema) as any,
+  });
 
   // Options for the <select/>
   const categoryOptions = useMemo(
@@ -76,13 +74,13 @@ export default function CreateProductPage() {
   );
 
   /** Submit handler */
-  const onSubmit = async (data: FormData) => {
+  const onSubmit: (data: ProductFormData) => Promise<void> = async (data) => {
     setSubmitError(null);
     setSubmitOk(null);
 
-    // 1) Ensure category really exists
-    const categoryExists = categories.some((c) => c.id === data.categoryId);
-    if (!categoryExists) {
+    // 1) Ensure category really exists and get category name
+    const selectedCategory = categories.find((c) => c.id === data.categoryId);
+    if (!selectedCategory) {
       setSubmitError("Selected category does not exist.");
       return;
     }
@@ -90,7 +88,7 @@ export default function CreateProductPage() {
     // 2) Duplicate guard (title + category)
     const duplicated = await ProductService.existsByTitleAndCategory(
       data.title,
-      data.categoryId
+      selectedCategory.name
     );
     if (duplicated) {
       setSubmitError("A product with this title already exists in the selected category.");
@@ -98,13 +96,13 @@ export default function CreateProductPage() {
     }
 
     // 3) Status by role: admin -> approved, employee -> unapproved
-  const status: "approved" | "unapproved" = role === "admin" ? "approved" : "unapproved";
+    const status: "approved" | "unapproved" = role === "admin" ? "approved" : "unapproved";
 
-    // 4) Build draft to match your ProductService contract (uses `image`, not `imageUrl`)
+    // 4) Build draft to match your ProductService contract
     const draft: ProductDraft = {
       title: data.title.trim(),
       price: data.price,
-      categoryId: data.categoryId, // if your API expects name, send `category` instead
+      category: selectedCategory.name, // Use category name for API
       description: data.description.trim(),
       image: data.image.trim(),
       inventory: data.inventory,
@@ -121,7 +119,7 @@ export default function CreateProductPage() {
       );
       reset(); // clear form after success
       // Optionally navigate back to the portal
-      // setTimeout(() => navigate("/employee-portal"), 800);
+      // setTimeout(() => router.push("/employee-portal"), 800);
     } catch (err: any) {
       setSubmitError(err?.message || "Could not create the product.");
     }
@@ -129,7 +127,7 @@ export default function CreateProductPage() {
 
   return (
     <div className="bg-gray-100 min-h-screen p-6 md:p-10">
-      <button className="mb-4 text-sm" onClick={() => navigate(-1)}>
+      <button className="mb-4 text-sm" onClick={() => router.back()}>
         &lt; Back
       </button>
 

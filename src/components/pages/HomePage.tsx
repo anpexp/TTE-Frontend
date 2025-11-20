@@ -25,26 +25,10 @@ export default function HomePage() {
   useEffect(() => {
     (async () => {
       try {
-        const apiCategories = await CategoryService.getCategories();
-        const list = Array.isArray(apiCategories) ? apiCategories : [];
-        const mapped = list.map((cat: any) => ({
-          id: cat.id,
-          name: cat.name,
-          imageUrl: `https://picsum.photos/400/300?${cat.slug || cat.name.toLowerCase().replace(/\s+/g, "-")}`,
-        }));
-        setCategories(mapped);
-      } catch {
-        setCategories([]);
-      }
-    })();
-
-    (async () => {
-      try {
-        const [latestRaw, bestRaw] = await Promise.all([
-          ProductService.getLatestProducts(),
-          ProductService.getBestProducts(),
-        ]);
-
+        // Get all approved products
+        const approvedProducts = await ProductService.getApprovedProducts();
+        
+        // Convert to UI format for product grids
         const toUI = (arr: any[]): Product[] =>
           (arr ?? []).map((p: any) => ({
             id: p.id as any,
@@ -53,29 +37,51 @@ export default function HomePage() {
             price: p.price,
           }));
 
-        const latestMapped = toUI(latestRaw);
-        const bestMapped = toUI(bestRaw);
+        const allProducts = toUI(approvedProducts);
 
+        // Set latest products (first 6)
+        const latestMapped = allProducts.slice(0, 6);
         setLatest(latestMapped.length ? latestMapped : (isDev ? DEV_FALLBACK : []));
-        setBest(bestMapped.length ? bestMapped : (isDev ? DEV_FALLBACK : []));
-        setBanner(bestMapped[0]?.imageUrl || latestMapped[0]?.imageUrl || "https://picsum.photos/id/1069/1600/500");
 
-        const deriveFrom = [...(bestRaw || []), ...(latestRaw || [])];
-        if (deriveFrom.length) {
-          setCategories(prev => {
-            if (prev.length) return prev;
-            const names = Array.from(new Set(deriveFrom.map((p: any) => p.category).filter(Boolean)));
-            const derived: Category[] = names.map((name: string) => {
-              const first = deriveFrom.find((p: any) => p.category === name);
-              return { id: name, name, imageUrl: first?.image || `https://picsum.photos/seed/${name}/400/300` };
-            });
-            return derived;
+        // Set best products (products with highest rating, limit to 3)
+        const bestMapped = [...approvedProducts]
+          .sort((a, b) => (b.rating?.rate || 0) - (a.rating?.rate || 0))
+          .slice(0, 4);
+        const bestUI = toUI(bestMapped);
+        setBest(bestUI.length ? bestUI : (isDev ? DEV_FALLBACK : []));
+
+        // Set banner from first product
+        setBanner(allProducts[0]?.imageUrl || "https://picsum.photos/id/1069/1600/500");
+
+        // Derive categories from approved products
+        if (approvedProducts.length) {
+          const categoryMap = new Map<string, { name: string; image: string }>();
+          
+          approvedProducts.forEach((p: any) => {
+            const categoryName = p.category;
+            if (categoryName && !categoryMap.has(categoryName)) {
+              // Use the first product's image for this category
+              categoryMap.set(categoryName, {
+                name: categoryName,
+                image: p.image || `https://picsum.photos/seed/${categoryName}/400/300`
+              });
+            }
           });
+
+          const derivedCategories: Category[] = Array.from(categoryMap.entries()).map(([id, data]) => ({
+            id,
+            name: data.name,
+            imageUrl: data.image
+          }));
+
+          setCategories(derivedCategories);
         }
-      } catch {
+      } catch (error) {
+        console.error("Error loading products:", error);
         setLatest(isDev ? DEV_FALLBACK : []);
         setBest(isDev ? DEV_FALLBACK : []);
         setBanner("https://picsum.photos/id/1069/1600/500");
+        setCategories([]);
       }
     })();
   }, []);
