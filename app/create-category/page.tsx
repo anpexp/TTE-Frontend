@@ -5,9 +5,9 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRouter } from "next/router";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthContext";
-import { CategoryDraft, CategoryService } from "@/components/lib/CategoryService";
+import { CategoryService } from "@/components/lib/CategoryService";
 import { Button, Input } from "@/components/atoms";
 
 
@@ -19,7 +19,7 @@ const schema = z.object({
 type FormData = z.infer<typeof schema>;
 
 export default function CreateCategoryPage() {
-  const navigate = useRouter();
+  const router = useRouter();
 
   // feedback messages
   const [submitError, setSubmitError] = useState<string | null>(null);
@@ -31,15 +31,15 @@ export default function CreateCategoryPage() {
   const isEmployee = rawRole.includes("employee");
   const isAdmin = rawRole.includes("superadmin") || rawRole.includes("admin");
   const role: "employee" | "admin" | "" = isAdmin ? "admin" : (isEmployee ? "employee" : "");
-  const userId = user?.id || "u1";
+  // userId retained if future metadata is added; unused now
 
   /** Guard: only employee/admin is allowed here. Wait until user is known. */
   useEffect(() => {
     if (!user) return;
     if (role !== "employee" && role !== "admin") {
-      navigate.push("/");
+      router.replace("/");
     }
-  }, [navigate, role, user]);
+  }, [router, role, user]);
 
   // RHF
   const {
@@ -53,33 +53,10 @@ export default function CreateCategoryPage() {
   const onSubmit = async (data: FormData) => {
     setSubmitError(null);
     setSubmitOk(null);
-
-    // duplicate guard
-    const duplicated = await CategoryService.existsByName(data.name);
-    if (duplicated) {
-      setSubmitError("A category with this name already exists.");
-      return;
-    }
-
-    // status by role
-    const status: "approved" | "unapproved" = role === "admin" ? "approved" : "unapproved";
-
-    const draft: CategoryDraft = {
-      name: data.name.trim(),
-      status,
-      createdBy: { id: userId, role: role as "employee" | "admin" },
-    };
-
     try {
-      await CategoryService.createCategory(draft);
-      setSubmitOk(
-        role === "admin"
-          ? "Category created and approved."
-          : "Category created and sent for approval."
-      );
+      await CategoryService.createCategory(data.name);
+      setSubmitOk("Category created.");
       reset();
-      // Optionally, go back to the portal:
-      // setTimeout(() => navigate("/employee-portal"), 800);
     } catch (err: any) {
       setSubmitError(err?.message || "Could not create the category.");
     }
@@ -87,7 +64,7 @@ export default function CreateCategoryPage() {
 
   return (
     <div className="bg-gray-100 min-h-screen p-6 md:p-10">
-      <button className="mb-4 text-sm" onClick={() => navigate.back()}>
+      <button className="mb-4 text-sm" onClick={() => router.back()}>
         &lt; Back
       </button>
 

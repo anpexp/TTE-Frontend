@@ -52,12 +52,10 @@ function mapDraftToApi(d: ProductDraft) {
     title: d.title,
     price: d.price,
     description: d.description,
-    image: d.image,
-    inventory: d.inventory,
-    status: d.status,
-    categoryId: d.categoryId ?? undefined,
-    category: d.category ?? undefined,
-    createdBy: d.createdBy ?? undefined,
+    category: d.category ?? d.categoryId ?? "",
+    imageUrl: d.image,
+    inventoryTotal: d.inventory,
+    inventoryAvailable: d.inventory,
   };
 }
 
@@ -72,31 +70,22 @@ export type PagedProductsResponse = {
 
 async function checkDuplicateServerSide(title: string, categoryIdOrName?: string): Promise<boolean> {
   const titleQ = encodeURIComponent(title.trim());
-  const catQ = categoryIdOrName ? encodeURIComponent(categoryIdOrName) : "";
   try {
-    const url = categoryIdOrName
-      ? `${STORE}/products/exists?title=${titleQ}&categoryId=${catQ}`
-      : `${STORE}/products/exists?title=${titleQ}`;
-    const res = await http.get<{ exists: boolean }>(url);
-    if (typeof res.data?.exists === "boolean") return res.data.exists;
-  } catch {}
-  try {
-    const url = categoryIdOrName
-      ? `${STORE}/products?page=1&pageSize=1&title=${titleQ}&categoryId=${catQ}`
-      : `${STORE}/products?page=1&pageSize=1&title=${titleQ}`;
+    // Use the exact endpoint: GET /api/store/products?title={title}&page=1&pageSize=12
+    const url = `${STORE}/products?title=${titleQ}&page=1&pageSize=12`;
     const res = await http.get<PagedProductsResponse>(url);
-    if (Array.isArray(res.data?.items)) return res.data.items.length > 0;
-  } catch {}
-  try {
-    const res = await http.get<PagedProductsResponse>(`${STORE}/products?page=1&pageSize=1000`);
-    const items = res.data?.items ?? [];
-    const t = title.trim().toLowerCase();
-    return items.some((p) => {
-      const sameTitle = p.title.trim().toLowerCase() === t;
-      if (!categoryIdOrName) return sameTitle;
-      const sameCat = p.category?.toString().toLowerCase() === categoryIdOrName.toLowerCase();
-      return sameTitle && sameCat;
-    });
+    if (Array.isArray(res.data?.items) && res.data.items.length > 0) {
+      // If we have a category to check, verify it matches
+      if (categoryIdOrName) {
+        const catLower = categoryIdOrName.toLowerCase();
+        return res.data.items.some((p) => 
+          p.category?.toString().toLowerCase() === catLower
+        );
+      }
+      // Otherwise, any match means duplicate
+      return true;
+    }
+    return false;
   } catch {
     return false;
   }
@@ -178,7 +167,8 @@ export const ProductService = {
     );
     if (duplicated) throw new Error("Product already exists in this category.");
     const payload = mapDraftToApi(draft);
-    const res = await http.post<Product>(`${STORE}/products`, payload);
+    // Use POST /api/product endpoint
+    const res = await http.post<Product>(`${PRODUCT}`, payload);
     return res.data;
   },
 };

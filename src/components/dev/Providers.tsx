@@ -4,6 +4,7 @@ import { useState } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider } from "@/components/auth/AuthContext";
 import { FavoritesProvider } from "../context/FavoritesContext";
+import { CartProvider } from "../context/CartContext";
 
 
 export default function Providers({ children }: { children: React.ReactNode }) {
@@ -27,7 +28,9 @@ export default function Providers({ children }: { children: React.ReactNode }) {
   return (
     <QueryClientProvider client={qc}>
       <AuthProvider>
-        <FavoritesProvider>{children}</FavoritesProvider>
+        <CartProvider>
+          <FavoritesProvider>{children}</FavoritesProvider>
+        </CartProvider>
       </AuthProvider>
     </QueryClientProvider>
   );
