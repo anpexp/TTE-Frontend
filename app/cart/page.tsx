@@ -6,6 +6,12 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthContext";
 import { Cart, CartService } from "@/components/lib/CartService";
 
+enum PaymentMethod {
+  Card = 0,
+  CashOnDelivery = 1,
+  BankTransfer = 2,
+}
+
 export default function Page() {
   const router = useRouter();
   const { user } = useAuth();
@@ -13,6 +19,11 @@ export default function Page() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [address, setAddress] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
+    PaymentMethod.Card
+  );
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   const fmt = useMemo(
     () =>
@@ -30,7 +41,12 @@ export default function Page() {
     }
     CartService.getActive()
       .then((data) => {
-        if (active) setCart(data);
+        if (active) {
+          setCart(data);
+          setAddress((data as any)?.address ?? "");
+          const pm = (data as any)?.paymentMethod;
+          setPaymentMethod(typeof pm === "number" ? pm : PaymentMethod.Card);
+        }
       })
       .catch((e: any) => {
         if (active) setError(e?.message || "No se pudo cargar el carrito");
@@ -45,10 +61,17 @@ export default function Page() {
 
   const handleCheckout = async () => {
     if (submitting) return;
+    setCheckoutError(null);
+    if (!address.trim()) {
+      setCheckoutError("Please enter an address");
+      return;
+    }
     setSubmitting(true);
     try {
-      await CartService.checkout();
+      await CartService.checkout({ address, paymentMethod });
       router.push("/my-orders");
+    } catch (e: any) {
+      setCheckoutError(e?.message || "Error en checkout");
     } finally {
       setSubmitting(false);
     }
@@ -164,6 +187,38 @@ export default function Page() {
             <span>Total</span>
             <span>{fmt.format(cart.finalTotal ?? 0)}</span>
           </div>
+
+          <div className="pt-2" />
+          <div className="flex flex-col gap-2">
+            <label className="text-sm">Address</label>
+            <input
+              className="w-full rounded-md border px-3 py-2"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="Av. Siempre Viva 742"
+            />
+          </div>
+          <div className="flex flex-col gap-2">
+            <label className="text-sm">Payment Method</label>
+            <select
+              className="w-full rounded-md border px-3 py-2"
+              value={paymentMethod}
+              onChange={(e) =>
+                setPaymentMethod(Number(e.target.value) as PaymentMethod)
+              }
+            >
+              <option value={PaymentMethod.Card}>Card</option>
+              <option value={PaymentMethod.CashOnDelivery}>
+                Cash On Delivery
+              </option>
+              <option value={PaymentMethod.BankTransfer}>Bank Transfer</option>
+            </select>
+          </div>
+
+          {checkoutError && (
+            <div className="text-sm text-red-600">{checkoutError}</div>
+          )}
+
           <div className="text-sm text-zinc-500">Estado: {cart.status}</div>
           <button
             onClick={handleCheckout}

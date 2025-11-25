@@ -1,20 +1,24 @@
-export default function Avatar({
-  src,
-  alt = "",
-  size = 24,
-}: {
+"use client";
+import { memo, useMemo } from "react";
+
+type Props = {
   src?: string;
   alt?: string;
   size?: number;
-}) {
-  if (!src)
+};
+
+function AvatarImpl({ src, alt = "", size = 24 }: Props) {
+  const boxStyle = useMemo(() => ({ width: size, height: size }), [size]);
+
+  if (!src) {
     return (
       <div
-        style={{ width: size, height: size }}
+        style={boxStyle}
         className="rounded-full border border-neutral-300"
       />
     );
-  // eslint-disable-next-line jsx-a11y/alt-text
+  }
+
   return (
     <img
       src={src}
@@ -25,3 +29,9 @@ export default function Avatar({
     />
   );
 }
+
+function areEqual(a: Props, b: Props) {
+  return a.src === b.src && a.alt === b.alt && a.size === b.size;
+}
+
+export default memo(AvatarImpl, areEqual);

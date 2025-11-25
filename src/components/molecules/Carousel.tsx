@@ -9,7 +9,7 @@ function Carousel({ source }: { source: string }) {
     () => [
       { id: "1", imageUrl: "https://picsum.photos/1200/400?1", alt: "banner1" },
       { id: "2", imageUrl: "https://picsum.photos/1200/400?2", alt: "banner2" },
-      { id: "3", imageUrl: "httpsum.photos/1200/400?3", alt: "banner3" },
+      { id: "3", imageUrl: "https://picsum.photos/1200/400?3", alt: "banner3" },
     ],
     []
   );

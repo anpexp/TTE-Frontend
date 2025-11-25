@@ -1,10 +1,18 @@
 "use client";
-import { Fragment, useEffect, useMemo, useState, useCallback } from "react";
+import {
+  Fragment,
+  useEffect,
+  useMemo,
+  useState,
+  useCallback,
+  useTransition,
+  memo,
+} from "react";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/components/auth/AuthContext";
-import { Cart, CartService } from "@/components/lib/CartService";
+import { Cart, CartService, PaymentMethod } from "@/components/lib/CartService";
 
-function Badge({ status }: { status: string }) {
+const Badge = memo(function Badge({ status }: { status: string }) {
   const m: Record<string, string> = {
     Confirmed: "bg-green-100 text-green-800",
     CheckedOut: "bg-green-100 text-green-800",
@@ -22,7 +30,7 @@ function Badge({ status }: { status: string }) {
       {status}
     </span>
   );
-}
+});
 
 function payLabel(s: string) {
   const v = (s || "").toLowerCase();
@@ -33,40 +41,152 @@ function payLabel(s: string) {
 
 type RangeKey = "7" | "30" | "all";
 
+type RowProps = {
+  o: Cart;
+  orderNo: number;
+  isOpen: boolean;
+  onToggle: (id: string) => void;
+  userName: string;
+  fmtMoney: Intl.NumberFormat;
+  fmtDate: (v?: string) => string;
+};
+
+const OrderRow = memo(function OrderRow({
+  o,
+  orderNo,
+  isOpen,
+  onToggle,
+  userName,
+  fmtMoney,
+  fmtDate,
+}: RowProps) {
+  return (
+    <Fragment>
+      <tr className="hover:bg-zinc-50">
+        <td className="px-5 py-4">{orderNo}</td>
+        <td className="px-5 py-4">{userName || "—"}</td>
+        <td className="px-5 py-4">{payLabel(o.status)}</td>
+        <td className="px-5 py-4 font-medium">
+          {fmtMoney.format(o.finalTotal ?? 0)}
+        </td>
+        <td className="px-5 py-4">
+          {(o as any).address || (o as any).shippingAddress || "-"}
+        </td>
+        <td className="px-5 py-4">{fmtDate(o.createdAt)}</td>
+        <td className="px-5 py-4">
+          <Badge status={o.status} />
+        </td>
+        <td className="px-5 py-4 text-right">
+          <button
+            className="rounded-md border px-3 py-1 text-xs"
+            onClick={() => onToggle(o.id)}
+          >
+            {isOpen ? "Hide" : "Details"}
+          </button>
+        </td>
+      </tr>
+      {isOpen && (
+        <tr className="bg-zinc-50">
+          <td colSpan={8} className="px-5 pb-5 pt-2">
+            <div className="overflow-hidden rounded-lg border bg-white">
+              <table className="min-w-full">
+                <thead className="bg-zinc-50 text-left text-xs text-zinc-600">
+                  <tr>
+                    <th className="px-4 py-2 font-medium">Item</th>
+                    <th className="px-4 py-2 font-medium">Quantity</th>
+                    <th className="px-4 py-2 font-medium">Unit Price</th>
+                    <th className="px-4 py-2 font-medium">Total</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y">
+                  {(o.items || []).map((it) => (
+                    <tr key={`${o.id}-${it.productId}`}>
+                      <td className="px-4 py-2">{it.productTitle}</td>
+                      <td className="px-4 py-2">{it.quantity}</td>
+                      <td className="px-4 py-2">
+                        {fmtMoney.format(it.unitPrice)}
+                      </td>
+                      <td className="px-4 py-2">
+                        {fmtMoney.format(it.totalPrice)}
+                      </td>
+                    </tr>
+                  ))}
+                  {!(o.items || []).length && (
+                    <tr>
+                      <td
+                        colSpan={4}
+                        className="px-4 py-4 text-center text-zinc-500"
+                      >
+                        No items
+                      </td>
+                    </tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </td>
+        </tr>
+      )}
+    </Fragment>
+  );
+});
+
 export default function Page() {
   const { user } = useAuth();
+  const userName = user?.name || "";
   const router = useRouter();
   const [orders, setOrders] = useState<Cart[]>([]);
   const [activeCart, setActiveCart] = useState<Cart | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [range, setRange] = useState<RangeKey>("7");
-  const [open, setOpen] = useState<Set<string>>(new Set());
+  const [open, setOpen] = useState<Set<string>>(() => new Set());
+  const [isPending, startTransition] = useTransition();
   const [checkingOut, setCheckingOut] = useState(false);
+  const [address, setAddress] = useState("");
+  const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>(
+    PaymentMethod.Card
+  );
+  const [checkoutError, setCheckoutError] = useState<string | null>(null);
 
   const fmtMoney = useMemo(
     () =>
       new Intl.NumberFormat("en-US", { style: "currency", currency: "USD" }),
     []
   );
-  const fmtDate = (v?: string) => (v ? new Date(v).toLocaleDateString() : "-");
+  const dateFmt = useMemo(
+    () =>
+      new Intl.DateTimeFormat(undefined, {
+        year: "numeric",
+        month: "2-digit",
+        day: "2-digit",
+      }),
+    []
+  );
+  const fmtDate = useCallback(
+    (v?: string) => (v ? dateFmt.format(new Date(v)) : "-"),
+    [dateFmt]
+  );
 
   const load = useCallback(async () => {
-    setLoading(true);
     setError(null);
+    setLoading(true);
     try {
       const [list, active] = await Promise.all([
         CartService.getAllMine({ onlyOrders: true }),
         CartService.getActive(),
       ]);
-      const done = list || [];
-      done.sort(
-        (a, b) =>
-          new Date(b.createdAt || 0).getTime() -
-          new Date(a.createdAt || 0).getTime()
-      );
-      setOrders(done);
-      setActiveCart(active);
+      const done = (list || [])
+        .slice()
+        .sort(
+          (a, b) =>
+            new Date(b.createdAt || 0).getTime() -
+            new Date(a.createdAt || 0).getTime()
+        );
+      startTransition(() => {
+        setOrders(done);
+        setActiveCart(active || null);
+      });
     } catch (e: any) {
       setError(e?.message || "No se pudieron cargar las órdenes");
     } finally {
@@ -80,7 +200,7 @@ export default function Page() {
       return;
     }
     load();
-  }, [user, load]);
+  }, [user?.id, load]);
 
   const filtered = useMemo(() => {
     if (range === "all") return orders;
@@ -92,16 +212,34 @@ export default function Page() {
     );
   }, [orders, range]);
 
-  const doCheckout = async () => {
+  const toggleOpen = useCallback((id: string) => {
+    setOpen((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const doCheckout = useCallback(async () => {
     if (!activeCart || checkingOut) return;
+    setCheckoutError(null);
+    if (!address.trim()) {
+      setCheckoutError("Ingresa una dirección");
+      return;
+    }
     setCheckingOut(true);
     try {
-      await CartService.checkout();
+      await CartService.checkout({ address, paymentMethod });
       await load();
+      setAddress("");
+      setPaymentMethod(PaymentMethod.Card);
+    } catch (e: any) {
+      setCheckoutError(e?.message || "Error en checkout");
     } finally {
       setCheckingOut(false);
     }
-  };
+  }, [activeCart, checkingOut, address, paymentMethod, load]);
 
   if (!user) {
     return (
@@ -123,6 +261,7 @@ export default function Page() {
     return (
       <div className="mx-auto max-w-6xl px-4 py-16">Cargando órdenes…</div>
     );
+
   if (error)
     return (
       <div className="mx-auto max-w-6xl px-4 py-16">
@@ -141,12 +280,41 @@ export default function Page() {
   return (
     <div className="mx-auto max-w-6xl px-4 py-10">
       {activeCart && (activeCart.items?.length || 0) > 0 && (
-        <div className="mb-6 flex items-center justify-between rounded-lg border bg-amber-50 px-4 py-3 text-amber-800">
-          <div className="text-sm">
-            Tienes un carrito activo con {activeCart.items.length} item(s) por{" "}
-            {fmtMoney.format(activeCart.finalTotal || 0)}.
+        <div className="mb-6 rounded-lg border bg-amber-50 p-4 text-amber-900">
+          <div className="mb-3 flex items-center justify-between">
+            <div className="text-sm">
+              Tienes un carrito activo con {activeCart.items.length} item(s) por{" "}
+              {fmtMoney.format(activeCart.finalTotal || 0)}.
+            </div>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+            <input
+              type="text"
+              value={address}
+              onChange={(e) => setAddress(e.target.value)}
+              placeholder="Address"
+              className="w-full rounded-md border px-3 py-2 text-sm md:col-span-2"
+            />
+            <select
+              value={paymentMethod}
+              onChange={(e) =>
+                setPaymentMethod(Number(e.target.value) as PaymentMethod)
+              }
+              className="w-full rounded-md border px-3 py-2 text-sm"
+            >
+              <option value={PaymentMethod.Card}>Card</option>
+              <option value={PaymentMethod.CashOnDelivery}>
+                CashOnDelivery
+              </option>
+              <option value={PaymentMethod.BankTransfer}>BankTransfer</option>
+            </select>
+          </div>
+          {checkoutError && (
+            <div className="mt-2 rounded-md bg-red-50 px-3 py-2 text-sm text-red-700">
+              {checkoutError}
+            </div>
+          )}
+          <div className="mt-3 flex items-center gap-2">
             <button
               onClick={() => router.push("/cart")}
               className="rounded-md border px-3 py-2 text-sm"
@@ -192,90 +360,18 @@ export default function Page() {
             </tr>
           </thead>
           <tbody className="divide-y text-sm">
-            {filtered.map((o) => {
-              const isOpen = open.has(o.id);
-              return (
-                <Fragment key={o.id}>
-                  <tr className="hover:bg-zinc-50">
-                    <td className="px-5 py-4">{o.id.slice(0, 8)}</td>
-                    <td className="px-5 py-4">{user?.name || "—"}</td>
-                    <td className="px-5 py-4">{payLabel(o.status)}</td>
-                    <td className="px-5 py-4 font-medium">
-                      {fmtMoney.format(o.finalTotal ?? 0)}
-                    </td>
-                    <td className="px-5 py-4">
-                      {(o as any).shippingAddress || "-"}
-                    </td>
-                    <td className="px-5 py-4">{fmtDate(o.createdAt)}</td>
-                    <td className="px-5 py-4">
-                      <Badge status={o.status} />
-                    </td>
-                    <td className="px-5 py-4 text-right">
-                      <button
-                        className="rounded-md border px-3 py-1 text-xs"
-                        onClick={() => {
-                          const next = new Set(open);
-                          if (isOpen) next.delete(o.id);
-                          else next.add(o.id);
-                          setOpen(next);
-                        }}
-                      >
-                        {isOpen ? "Hide" : "Details"}
-                      </button>
-                    </td>
-                  </tr>
-
-                  {isOpen && (
-                    <tr className="bg-zinc-50">
-                      <td colSpan={8} className="px-5 pb-5 pt-2">
-                        <div className="overflow-hidden rounded-lg border bg-white">
-                          <table className="min-w-full">
-                            <thead className="bg-zinc-50 text-left text-xs text-zinc-600">
-                              <tr>
-                                <th className="px-4 py-2 font-medium">Item</th>
-                                <th className="px-4 py-2 font-medium">
-                                  Quantity
-                                </th>
-                                <th className="px-4 py-2 font-medium">
-                                  Unit Price
-                                </th>
-                                <th className="px-4 py-2 font-medium">Total</th>
-                              </tr>
-                            </thead>
-                            <tbody className="divide-y">
-                              {(o.items || []).map((it) => (
-                                <tr key={`${o.id}-${it.productId}`}>
-                                  <td className="px-4 py-2">
-                                    {it.productTitle}
-                                  </td>
-                                  <td className="px-4 py-2">{it.quantity}</td>
-                                  <td className="px-4 py-2">
-                                    {fmtMoney.format(it.unitPrice)}
-                                  </td>
-                                  <td className="px-4 py-2">
-                                    {fmtMoney.format(it.totalPrice)}
-                                  </td>
-                                </tr>
-                              ))}
-                              {!(o.items || []).length && (
-                                <tr>
-                                  <td
-                                    colSpan={4}
-                                    className="px-4 py-4 text-center text-zinc-500"
-                                  >
-                                    No items
-                                  </td>
-                                </tr>
-                              )}
-                            </tbody>
-                          </table>
-                        </div>
-                      </td>
-                    </tr>
-                  )}
-                </Fragment>
-              );
-            })}
+            {filtered.map((o, i) => (
+              <OrderRow
+                key={o.id}
+                o={o}
+                orderNo={i + 1}
+                isOpen={open.has(o.id)}
+                onToggle={toggleOpen}
+                userName={userName}
+                fmtMoney={fmtMoney}
+                fmtDate={fmtDate}
+              />
+            ))}
             {!filtered.length && (
               <tr>
                 <td
@@ -289,6 +385,10 @@ export default function Page() {
           </tbody>
         </table>
       </div>
+
+      {isPending && (
+        <div className="mt-4 text-sm text-zinc-500">Actualizando…</div>
+      )}
     </div>
   );
 }
