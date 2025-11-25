@@ -84,7 +84,13 @@ function areEqual(a: InputProps, b: InputProps) {
     a.value === b.value &&
     a.placeholder === b.placeholder &&
     a.type === b.type &&
-    a.name === b.name
+    a.name === b.name &&
+    a.onChange === b.onChange &&
+    a.onBlur === b.onBlur &&
+    a.onFocus === b.onFocus &&
+    a.onKeyDown === b.onKeyDown &&
+    a.onKeyUp === b.onKeyUp &&
+    a.onInput === b.onInput
   );
 }
 
