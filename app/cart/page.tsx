@@ -68,7 +68,7 @@ export default function Page() {
     }
     setSubmitting(true);
     try {
-      await (CartService as any).checkout({ address, paymentMethod });
+      await CartService.checkout({ address, paymentMethod });
       router.push("/my-orders");
     } catch (e: any) {
       setCheckoutError(e?.message || "Error en checkout");
