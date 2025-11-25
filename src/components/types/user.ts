@@ -1,5 +1,5 @@
 // src/types/user.ts
-export type Role = "shopper" | "employee" | "admin";
+export type Role = "shopper" | "employee" | "superadmin";
 
 export type UserLike = {
   id: string;

@@ -1,8 +1,10 @@
-import Button from "../components/atoms/Button";
-import { useNavigate } from "react-router-dom";
+"use client";
+
+import Button from "../atoms/Button";
+import { useRouter } from "next/navigation";
 
 export default function EmployeePortal() {
-  const navigate = useNavigate();
+  const router = useRouter();
 
   const cards = [
     { label: "Create Product", to: "/create-product" },
@@ -24,7 +26,7 @@ export default function EmployeePortal() {
         {cards.map((c) => (
           <Button
             key={c.label}
-            onClick={() => navigate(c.to)}
+            onClick={() => router.push(c.to)}
             aria-label={c.label}
             className="
               w-full h-14 rounded-xl

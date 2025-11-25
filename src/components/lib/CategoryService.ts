@@ -71,6 +71,18 @@ export const CategoryService = {
     const res = await http.post<Category>(`${BASE}/categories`, payload);
     return res.data;
   },
+
+  /** Update category (PUT /api/categories) */
+  async updateCategory(payload: { id: string; name: string; slug: string; approved?: boolean }): Promise<{ message: string }> {
+    const res = await http.put<{ message: string }>(`${BASE}/categories`, payload);
+    return res.data;
+  },
+
+  /** Delete category (DELETE /api/categories) */
+  async deleteCategory(payload: { id: string; approved?: boolean }): Promise<{ message: string }> {
+    const res = await http.delete<{ message: string }>(`${BASE}/categories`, { data: payload });
+    return res.data;
+  },
 };
 
 export type CategoryDraft = { name: string; slug: string }; // kept for compatibility if needed

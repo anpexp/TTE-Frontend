@@ -1,5 +1,5 @@
-// src/pages/CreateProductPage.tsx
 "use client";
+// src/pages/CreateProductPage.tsx
 import { use, useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm, type SubmitHandler } from "react-hook-form";
@@ -9,6 +9,7 @@ import { CategoryService } from "@/components/lib/CategoryService";
 import { useAuth } from "@/components/auth/AuthContext";
 import { ProductDraft, ProductService } from "@/components/lib/ProductService";
 import { Button, Input } from "@/components/atoms";
+import RequireRole from "@/components/auth/RequireRole";
 
 const schema = z.object({
   title: z.string().min(2, "Title is required"),
@@ -36,10 +37,7 @@ export default function CreateProductPage() {
   const role: "employee" | "admin" | "" = isAdmin ? "admin" : isEmployee ? "employee" : "";
   const userId = user?.id || "u1";
 
-  useEffect(() => {
-    if (!user) return;
-    if (role !== "employee" && role !== "admin") router.push("/");
-  }, [router, role, user]);
+  // Access protection handled by RequireRole wrapper
 
   useEffect(() => {
     (async () => {
@@ -108,48 +106,50 @@ export default function CreateProductPage() {
   };
 
   return (
-    <div className="bg-gray-100 min-h-screen p-6 md:p-10">
-      <button className="mb-4 text-sm" onClick={() => router.back()}>&lt; Back</button>
+    <RequireRole roles={["employee", "admin", "superadmin"]}>
+      <div className="bg-gray-100 min-h-screen p-6 md:p-10">
+        <button className="mb-4 text-sm" onClick={() => router.back()}>&lt; Back</button>
 
-      <h1 className="text-3xl md:text-5xl font-bold text-center mb-10">Employee Portal</h1>
+        <h1 className="text-3xl md:text-5xl font-bold text-center mb-10">Employee Portal</h1>
 
-      <div className="max-w-lg mx-auto bg-white rounded-lg shadow p-6">
-        <h2 className="text-xl font-semibold mb-4">Create Product</h2>
+        <div className="max-w-lg mx-auto bg-white rounded-lg shadow p-6">
+          <h2 className="text-xl font-semibold mb-4">Create Product</h2>
 
-        <form onSubmit={handleSubmit(onSubmit)} noValidate>
-          <Input label="Title" {...register("title")} error={errors.title?.message} />
+          <form onSubmit={handleSubmit(onSubmit)} noValidate>
+            <Input label="Title" {...register("title")} error={errors.title?.message} />
 
-          <Input label="Price" type="number" step="0.01" {...register("price", { valueAsNumber: true })} error={errors.price?.message} />
+            <Input label="Price" type="number" step="0.01" {...register("price", { valueAsNumber: true })} error={errors.price?.message} />
 
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-1">Category</label>
-            <select className="w-full border rounded px-3 py-2" {...register("categoryId")} defaultValue="">
-              <option value="" disabled>Select a category</option>
-              {categoryOptions.map((opt) => (
-                <option key={opt.value} value={opt.value}>{opt.label}</option>
-              ))}
-            </select>
-            {errors.categoryId?.message && <p className="text-red-600 text-sm mt-1">{errors.categoryId.message}</p>}
-          </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">Category</label>
+              <select className="w-full border rounded px-3 py-2" {...register("categoryId")} defaultValue="">
+                <option value="" disabled>Select a category</option>
+                {categoryOptions.map((opt) => (
+                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                ))}
+              </select>
+              {errors.categoryId?.message && <p className="text-red-600 text-sm mt-1">{errors.categoryId.message}</p>}
+            </div>
 
-          <div className="mb-4">
-            <label className="block text-sm font-medium mb-1">Description</label>
-            <textarea rows={3} className="w-full border rounded px-3 py-2" {...register("description")} />
-            {errors.description?.message && <p className="text-red-600 text-sm mt-1">{errors.description.message}</p>}
-          </div>
+            <div className="mb-4">
+              <label className="block text-sm font-medium mb-1">Description</label>
+              <textarea rows={3} className="w-full border rounded px-3 py-2" {...register("description")} />
+              {errors.description?.message && <p className="text-red-600 text-sm mt-1">{errors.description.message}</p>}
+            </div>
 
-          <Input label="Image" {...register("image")} error={errors.image?.message} />
+            <Input label="Image" {...register("image")} error={errors.image?.message} />
 
-          <Input label="Inventory" type="number" {...register("inventory", { valueAsNumber: true })} error={errors.inventory?.message} />
+            <Input label="Inventory" type="number" {...register("inventory", { valueAsNumber: true })} error={errors.inventory?.message} />
 
-          {submitError && <div className="text-red-600 mt-2">{submitError}</div>}
-          {submitOk && <div className="text-green-700 mt-2">{submitOk}</div>}
+            {submitError && <div className="text-red-600 mt-2">{submitError}</div>}
+            {submitOk && <div className="text-green-700 mt-2">{submitOk}</div>}
 
-          <Button type="submit" disabled={isSubmitting} className="mt-4 w-full">
-            {isSubmitting ? "Saving..." : "Add"}
-          </Button>
-        </form>
+            <Button type="submit" disabled={isSubmitting} className="mt-4 w-full">
+              {isSubmitting ? "Saving..." : "Add"}
+            </Button>
+          </form>
+        </div>
       </div>
-    </div>
+    </RequireRole>
   );
 }

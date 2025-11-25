@@ -33,6 +33,9 @@ export type ProductDetail = {
   isLowStock: boolean;
   isOutOfStock: boolean;
   isInStock: boolean;
+  status?: ProductStatus; // approval state
+  createdAt?: string;
+  createdBy?: string;
 };
 
 export type ProductDraft = {
@@ -135,6 +138,9 @@ function normalizeDetail(raw: any): ProductDetail {
     isLowStock,
     isOutOfStock,
     isInStock,
+    status: (p.status ?? p.approvalStatus ?? p.productStatus) as ProductStatus | undefined,
+    createdAt: typeof p.createdAt === "string" ? p.createdAt : undefined,
+    createdBy: typeof p.createdBy === "string" ? p.createdBy : (typeof p.creatorId === "string" ? p.creatorId : undefined),
   };
 }
 
@@ -177,6 +183,13 @@ function mapSort(sort?: SearchParams["sort"]): { sortBy?: string; sortDir?: "Asc
 export const ProductService = {
   getApprovedProducts: async (): Promise<ProductDetail[]> => {
     const res = await http.get<ProductDetail[]>(`${PRODUCT}/approved`);
+    const arr = Array.isArray(res.data) ? res.data : [];
+    return arr.map(normalizeDetail);
+  },
+
+  // Fetch all products (approved + unapproved) for employee/admin visibility of approval state
+  getAllProductsDetailed: async (): Promise<ProductDetail[]> => {
+    const res = await http.get<ProductDetail[]>(`${PRODUCT}`);
     const arr = Array.isArray(res.data) ? res.data : [];
     return arr.map(normalizeDetail);
   },
@@ -245,6 +258,31 @@ export const ProductService = {
     const res = await http.get<PagedProductsResponse>(url);
     const items = Array.isArray(res.data?.items) ? res.data.items.map(normalizeListItem) : [];
     return { ...res.data, items };
+  },
+
+  update: async (id: string, draft: Partial<ProductDraft> & { status?: ProductStatus }): Promise<{ message: string }> => {
+    if (!id) throw new Error("Product id required");
+    const payload = {
+      id,
+      ...mapDraftToApi({
+        title: draft.title || "",
+        price: draft.price || 0,
+        description: draft.description || "",
+        category: draft.category || draft.categoryId || "",
+        image: draft.image || "",
+        inventory: (draft as any).inventory ?? 0,
+        status: draft.status || "unapproved",
+      } as ProductDraft),
+      status: draft.status || "unapproved",
+    };
+    const res = await http.put<{ message: string }>(`${PRODUCT}`, payload);
+    return res.data;
+  },
+
+  delete: async (id: string, approved: boolean): Promise<{ message: string }> => {
+    if (!id) throw new Error("Product id required");
+    const res = await http.delete<{ message: string }>(`${PRODUCT}`, { data: { id, approved } });
+    return res.data;
   },
 };
 
