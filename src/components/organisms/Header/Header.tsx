@@ -14,6 +14,43 @@ import Button from "../../atoms/Button";
 import { useAuth } from "@/components/auth/AuthContext";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
+import { memo } from "react";
+import { useFavoritesCount } from "@/components/context/FavoritesContext";
+
+const AutoWishlistActionIcon = memo(({ onClick }: { onClick?: () => void }) => {
+  const count = useFavoritesCount();
+  return (
+    <ActionIcon
+      name="heart"
+      ariaLabel="Wishlist"
+      onClick={onClick}
+      count={count}
+    />
+  );
+});
+
+AutoWishlistActionIcon.displayName = "AutoWishlistActionIcon";
+
+function WishlistActionIcon({
+  count,
+  onClick,
+}: {
+  count?: number;
+  onClick?: () => void;
+}) {
+  if (typeof count === "number") {
+    return (
+      <ActionIcon
+        name="heart"
+        ariaLabel="Wishlist"
+        onClick={onClick}
+        count={count}
+      />
+    );
+  }
+
+  return <AutoWishlistActionIcon onClick={onClick} />;
+}
 
 export type HeaderProps = {
   currency?: string;
@@ -39,7 +76,7 @@ const defaultNav: NavItem[] = [
 function HeaderImpl({
   currency,
   cartCount = 0,
-  wishlistCount = 0,
+  wishlistCount,
   navItems = defaultNav,
   onSearch,
   onSelectCurrency,
@@ -103,11 +140,9 @@ function HeaderImpl({
             />
             {showShopperIcons && (
               <>
-                <ActionIcon
-                  name="heart"
-                  ariaLabel="Wishlist"
-                  onClick={onGoToWishlist}
+                <WishlistActionIcon
                   count={wishlistCount}
+                  onClick={onGoToWishlist}
                 />
                 <ActionIcon
                   name="cart"

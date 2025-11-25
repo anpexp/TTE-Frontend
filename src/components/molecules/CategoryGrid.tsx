@@ -1,6 +1,10 @@
+import { memo } from "react";
+
 export type Category = { id: string; name: string; imageUrl: string };
 
-export default function CategoryGrid({ categories }: { categories: Category[] }) {
+type CategoryGridProps = { categories: Category[] };
+
+function CategoryGridComponent({ categories }: CategoryGridProps) {
   return (
     <section className="py-10 text-center">
       <h2 className="text-2xl font-bold mb-2">Categories</h2>
@@ -18,3 +22,8 @@ export default function CategoryGrid({ categories }: { categories: Category[] })
     </section>
   );
 }
+
+const CategoryGrid = memo(CategoryGridComponent);
+CategoryGrid.displayName = "CategoryGrid";
+
+export default CategoryGrid;

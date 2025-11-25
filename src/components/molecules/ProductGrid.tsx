@@ -9,12 +9,18 @@ export type Product = {
   price: number;
 };
 
+export type ProductGridProps = {
+  title?: string;
+  products: Product[];
+  withFavorites?: boolean;
+};
+
 type ProductCardProps = {
   product: Product;
   isFav: boolean;
   withFavorites: boolean;
   onToggleFavorite: (id: Product["id"]) => void;
-  formatPrice: (n: number) => string;
+  formatPrice: (value: number) => string;
 };
 
 const ProductCard = memo(function ProductCard({
@@ -27,17 +33,14 @@ const ProductCard = memo(function ProductCard({
   const fallback = `https://picsum.photos/seed/${product.id}/800/600`;
   const img = product.imageUrl || fallback;
 
-  const handleFav = useCallback(
-    () => onToggleFavorite(product.id),
-    [onToggleFavorite, product.id]
-  );
+  const handleFavorite = useCallback(() => onToggleFavorite(product.id), [onToggleFavorite, product.id]);
 
   return (
-    <div className="relative rounded-xl border bg-white p-3 shadow-sm hover:shadow-md transition">
+    <div className="relative rounded-xl border bg-white p-3 shadow-sm transition hover:shadow-md">
       <Link
         href={`/product/${product.id}`}
         aria-label={`Go to ${product.name} details`}
-        className="block w-full aspect-[4/3] rounded-lg bg-gray-100 overflow-hidden"
+        className="block aspect-[4/3] w-full overflow-hidden rounded-lg bg-gray-100"
       >
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -50,9 +53,9 @@ const ProductCard = memo(function ProductCard({
           height={600}
           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
           fetchPriority="low"
-          onError={(e) => {
-            if (e.currentTarget.src !== fallback) {
-              e.currentTarget.src = fallback;
+          onError={(event) => {
+            if (event.currentTarget.src !== fallback) {
+              event.currentTarget.src = fallback;
             }
           }}
         />
@@ -61,19 +64,15 @@ const ProductCard = memo(function ProductCard({
       {withFavorites && (
         <button
           type="button"
-          onClick={handleFav}
+          onClick={handleFavorite}
           aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
           title={isFav ? "Remove from favorites" : "Add to favorites"}
-          className="absolute top-2 right-2 p-1 rounded-full border bg-white/90 hover:bg-white"
+          className="absolute right-2 top-2 rounded-full border bg-white/90 p-1 hover:bg-white"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
-            className={`h-5 w-5 ${
-              isFav
-                ? "fill-current text-rose-600"
-                : "stroke-current text-gray-700"
-            }`}
+            className={`h-5 w-5 ${isFav ? "fill-current text-rose-600" : "stroke-current text-gray-700"}`}
             fill="none"
             strokeWidth="1.5"
           >
@@ -83,11 +82,8 @@ const ProductCard = memo(function ProductCard({
       )}
 
       <div className="mt-3">
-        <Link
-          href={`/product/${product.id}`}
-          className="text-left text-sm block"
-        >
-          <div className="font-medium truncate" title={product.name}>
+        <Link href={`/product/${product.id}`} className="block text-left text-sm">
+          <div className="truncate font-medium" title={product.name}>
             {product.name}
           </div>
           <div className="text-gray-600">{formatPrice(product.price)}</div>
@@ -97,27 +93,25 @@ const ProductCard = memo(function ProductCard({
   );
 });
 
-export default function ProductGrid({
+ProductCard.displayName = "ProductCard";
+
+function ProductGridBase({
   title,
   products,
   withFavorites = true,
-}: {
-  title?: string;
-  products: Product[];
-  withFavorites?: boolean;
-}) {
+}: ProductGridProps) {
   const { isFavorite, toggle } = useFavorites();
 
   const formatPrice = useMemo(() => {
-    const f = new Intl.NumberFormat("en-US", {
+    const formatter = new Intl.NumberFormat("en-US", {
       style: "currency",
       currency: "USD",
       maximumFractionDigits: 0,
     });
-    return (n: number) => f.format(n);
+    return (value: number) => formatter.format(value);
   }, []);
 
-  const onToggleFavorite = useCallback(
+  const handleToggleFavorite = useCallback(
     (id: Product["id"]) => {
       toggle(id);
     },
@@ -126,24 +120,22 @@ export default function ProductGrid({
 
   return (
     <section className="mx-auto max-w-6xl">
-      {title && <h2 className="text-xl font-semibold mb-4">{title}</h2>}
+      {title && <h2 className="mb-4 text-xl font-semibold">{title}</h2>}
 
       {products.length === 0 ? (
-        <div className="rounded-2xl border p-10 text-center text-gray-700 bg-white">
+        <div className="rounded-2xl border bg-white p-10 text-center text-gray-700">
           <p className="text-lg font-medium">No items to show yet</p>
-          <p className="text-gray-600 mt-1">
-            We’re curating the best tech for you.
-          </p>
+          <p className="mt-1 text-gray-600">We’re curating the best tech for you.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4">
-          {products.map((p) => (
+          {products.map((product) => (
             <ProductCard
-              key={p.id}
-              product={p}
-              isFav={isFavorite(p.id)}
+              key={product.id}
+              product={product}
+              isFav={isFavorite(product.id)}
               withFavorites={withFavorites}
-              onToggleFavorite={onToggleFavorite}
+              onToggleFavorite={handleToggleFavorite}
               formatPrice={formatPrice}
             />
           ))}
@@ -152,3 +144,5 @@ export default function ProductGrid({
     </section>
   );
 }
+
+export default memo(ProductGridBase);

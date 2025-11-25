@@ -1,10 +1,13 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { memo, useEffect, useMemo, useState } from "react";
 import Image from "next/image";
 import { useRouter, useParams } from "next/navigation";
 import Button from "@/components/atoms/Button";
-import { useFavorites } from "@/components/context/FavoritesContext";
+import {
+  FavoriteID,
+  useFavoriteStatus,
+} from "@/components/context/FavoritesContext";
 import { useAuth } from "@/components/auth/AuthContext";
 import { useCart } from "@/components/context/CartContext";
 import { ProductDetail, ProductService } from "@/components/lib/ProductService";
@@ -31,12 +34,25 @@ function computeAvailable(p: any) {
   return inv > 0;
 }
 
+const FavoriteToggleButton = memo(
+  ({ productId }: { productId: FavoriteID }) => {
+    const { isFavorite, toggle } = useFavoriteStatus(productId);
+
+    return (
+      <Button onClick={toggle}>
+        {isFavorite ? "Remove from wishlist" : "Add to wishlist"}
+      </Button>
+    );
+  }
+);
+
+FavoriteToggleButton.displayName = "FavoriteToggleButton";
+
 export default function Page() {
   const router = useRouter();
   const { id: rawId } = useParams() as { id?: string | string[] };
   const id = Array.isArray(rawId) ? rawId[0] : rawId;
   const { user } = useAuth();
-  const { isFavorite, toggle } = useFavorites();
   const { addItem } = useCart();
 
   const [product, setProduct] = useState<ProductDetail | null>(null);
@@ -158,11 +174,7 @@ export default function Page() {
                   : "Add to cart"
                 : "Unavailable"}
             </Button>
-            <Button onClick={() => toggle(product.id)}>
-              {isFavorite(product.id)
-                ? "Remove from wishlist"
-                : "Add to wishlist"}
-            </Button>
+            <FavoriteToggleButton productId={product.id} />
           </div>
           {cartErr && <div className="text-sm text-red-600">{cartErr}</div>}
         </div>

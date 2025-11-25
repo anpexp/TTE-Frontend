@@ -1,6 +1,6 @@
-
+import { memo } from "react";
 import { useRouter } from "next/navigation";
-import { useFavorites } from "../context/FavoritesContext";
+import { useFavoriteStatus } from "../context/FavoritesContext";
 /** Small, reusable product card molecule (Atomic Design) */
 export type ProductLike = {
   id: string | number;
@@ -9,10 +9,14 @@ export type ProductLike = {
   imageUrl?: string; // Optional for placeholders
 };
 
-export default function ProductCard({ product }: { product: ProductLike }) {
+type ProductCardProps = {
+  product: ProductLike;
+  withFavorites?: boolean;
+};
+
+function ProductCardComponent({ product, withFavorites = true }: ProductCardProps) {
   const navigate = useRouter();
-  const { isFavorite, toggle } = useFavorites();
-  const fav = isFavorite(product.id);
+  const { isFavorite, toggle } = useFavoriteStatus(product.id);
 
   // Go to product detail when clicking the image/name area
   const goDetail = () => navigate.push(`/product/${product.id}`);
@@ -48,26 +52,33 @@ export default function ProductCard({ product }: { product: ProductLike }) {
         </button>
 
         {/* Favorite heart */}
-        <button
-          onClick={() => toggle(product.id)}
-          aria-label={fav ? "Remove from favorites" : "Add to favorites"}
-          className="p-1 rounded-full border hover:bg-gray-50"
-          title={fav ? "Remove from favorites" : "Add to favorites"}
-        >
-          {/* Using a simple heart SVG to avoid extra deps */}
-          <svg
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            className={`h-5 w-5 ${fav ? "fill-current text-rose-600" : "stroke-current text-gray-700"}`}
-            fill="none"
-            strokeWidth="1.5"
+        {withFavorites && (
+          <button
+            onClick={toggle}
+            aria-label={isFavorite ? "Remove from favorites" : "Add to favorites"}
+            className="p-1 rounded-full border hover:bg-gray-50"
+            title={isFavorite ? "Remove from favorites" : "Add to favorites"}
           >
-            <path
-              d="M16.5 3.75c-1.657 0-3.09.99-4.5 3-1.41-2.01-2.843-3-4.5-3A4.75 4.75 0 0 0 2.75 8.5c0 5.25 7.75 9.75 9.25 10.75 1.5-1 9.25-5.5 9.25-10.75a4.75 4.75 0 0 0-4.75-4.75Z"
-            />
-          </svg>
-        </button>
+            {/* Using a simple heart SVG to avoid extra deps */}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              className={`h-5 w-5 ${isFavorite ? "fill-current text-rose-600" : "stroke-current text-gray-700"}`}
+              fill="none"
+              strokeWidth="1.5"
+            >
+              <path
+                d="M16.5 3.75c-1.657 0-3.09.99-4.5 3-1.41-2.01-2.843-3-4.5-3A4.75 4.75 0 0 0 2.75 8.5c0 5.25 7.75 9.75 9.25 10.75 1.5-1 9.25-5.5 9.25-10.75a4.75 4.75 0 0 0-4.75-4.75Z"
+              />
+            </svg>
+          </button>
+        )}
       </div>
     </div>
   );
 }
+
+const ProductCard = memo(ProductCardComponent);
+ProductCard.displayName = "ProductCard";
+
+export default ProductCard;
