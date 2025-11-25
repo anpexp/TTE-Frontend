@@ -192,7 +192,7 @@ export default function Page() {
     } finally {
       setLoading(false);
     }
-  }, [startTransition]);
+  }, []);
 
   useEffect(() => {
     if (!user) {
