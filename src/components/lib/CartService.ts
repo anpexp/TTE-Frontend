@@ -4,6 +4,12 @@ const API_ROOT = (process.env.NEXT_PUBLIC_API_URL || "").replace(/\/+$/, "");
 if (!API_ROOT) throw new Error("NEXT_PUBLIC_API_URL is required");
 const CART = `${API_ROOT}/api/Cart`;
 
+export enum PaymentMethod {
+  Card = 0,
+  CashOnDelivery = 1,
+  BankTransfer = 2,
+}
+
 export type CartItem = {
   productId: string;
   productTitle: string;
@@ -26,7 +32,8 @@ export type Cart = {
   createdAt: string;
   updatedAt: string;
   status: string;
-  shippingAddress?: string;
+  address?: string;
+  paymentMethod?: PaymentMethod;
 };
 
 const token = () =>
@@ -88,10 +95,12 @@ export const CartService = {
     const res = await http.delete<Cart>(`${CART}/remove-item/${productId}`, { headers: auth() });
     return res.data ?? null;
   },
-  checkout: async (): Promise<Cart | null> => {
+  checkout: async (payload: { address: string; paymentMethod: PaymentMethod }): Promise<Cart | null> => {
     if (onLoginPage()) return null;
     if (!token()) return null;
-    const res = await http.post<Cart>(`${CART}/checkout`, {}, { headers: auth() });
+    const res = await http.post<Cart>(`${CART}/checkout`, payload, {
+      headers: { ...auth(), "Content-Type": "application/json" },
+    });
     return res.data ?? null;
   },
   clear: async (): Promise<void> => {

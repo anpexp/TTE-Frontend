@@ -1,10 +1,15 @@
-import { useState } from "react";
+"use client";
+import { memo, useMemo, useCallback, useState } from "react";
 import { CurrencyRail, ShippingBanner } from "../../molecules/TopRails";
 import BrandLogo from "../../molecules/BrandLogo";
 import NavMenu, { type NavItem } from "../../molecules/NavMenu";
 import ActionIcon from "../../molecules/SearchBar/ActionIcon";
 import SearchBar from "../../molecules/SearchBar";
-import { GuestDropdown, UserDropdown, type UserLike } from "../../molecules/UserDropdown";
+import {
+  GuestDropdown,
+  UserDropdown,
+  type UserLike,
+} from "../../molecules/UserDropdown";
 import Button from "../../atoms/Button";
 import { useAuth } from "@/components/auth/AuthContext";
 import Link from "next/link";
@@ -21,7 +26,6 @@ export type HeaderProps = {
   onGoToCart?: () => void;
   onGoToWishlist?: () => void;
   onLogoClick?: () => void;
-  // legacy/optional callbacks used by App.tsx
   onSignIn?: () => void;
   onLogout?: () => void;
   onGoToPortal?: () => void;
@@ -32,7 +36,7 @@ const defaultNav: NavItem[] = [
   { key: "wishlist", label: "Wishlist", href: "/favorites" },
 ];
 
-export default function Header({
+function HeaderImpl({
   currency,
   cartCount = 0,
   wishlistCount = 0,
@@ -46,37 +50,57 @@ export default function Header({
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const { user, logout } = useAuth();
-  const navigate = useRouter();
-  const location = usePathname();
+  const router = useRouter();
+  const pathname = usePathname();
 
-  const hideNativeCart = (location ?? "").startsWith("/employee-portal");
-  const roleStr = (user?.role ?? "").toString().toLowerCase();
-  const isStaff = roleStr === "employee" || roleStr === "admin" || roleStr === "superadmin";
+  const hideNativeCart = useMemo(
+    () => (pathname ?? "").startsWith("/employee-portal"),
+    [pathname]
+  );
+  const roleStr = useMemo(
+    () => (user?.role ?? "").toString().toLowerCase(),
+    [user?.role]
+  );
+  const isStaff =
+    roleStr === "employee" || roleStr === "admin" || roleStr === "superadmin";
   const showShopperIcons = !isStaff && !hideNativeCart;
-  // Remove shopper-only navigation entries for staff roles
-  const effectiveNavItems = isStaff
-    ? navItems.filter(i => i.key !== "shop-list" && i.key !== "wishlist")
-    : navItems;
 
-  const handleSignIn = () => navigate.push("/login");
-  const handleSignUp = () => navigate.push("/register");
-  const handleLogout = async () => { await logout(); navigate.push("/"); };
-  const handlePortal = () => navigate.push("/employee-portal");
+  const effectiveNavItems = useMemo(
+    () =>
+      isStaff
+        ? navItems.filter((i) => i.key !== "shop-list" && i.key !== "wishlist")
+        : navItems,
+    [isStaff, navItems]
+  );
+
+  const toggleSearch = useCallback(() => setShowSearch((v) => !v), []);
+  const toggleMobile = useCallback(() => setMobileOpen((v) => !v), []);
+
+  const handleSignIn = useCallback(() => router.push("/login"), [router]);
+  const handleSignUp = useCallback(() => router.push("/register"), [router]);
+  const handleLogout = useCallback(async () => {
+    await logout();
+    router.push("/");
+  }, [logout, router]);
+  const handlePortal = useCallback(
+    () => router.push("/employee-portal"),
+    [router]
+  );
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-neutral-200 bg-white/95 backdrop-blur supports-[backdrop-filter]:bg-white/70">
-      {/* Utility rails */}
       <CurrencyRail currency={currency} onSelectCurrency={onSelectCurrency} />
       <ShippingBanner />
       <div className="mx-auto max-w-7xl px-4">
         <div className="flex items-center justify-between py-2 md:py-3">
-          {/* Left: brand */}
           <BrandLogo onClick={onLogoClick} />
-          {/* Center: nav */}
           <NavMenu items={effectiveNavItems} />
-          {/* Right: controls */}
           <div className="flex items-center gap-3 md:gap-4">
-            <ActionIcon name="search" ariaLabel="Search" onClick={() => setShowSearch(v => !v)} />
+            <ActionIcon
+              name="search"
+              ariaLabel="Search"
+              onClick={toggleSearch}
+            />
             {showShopperIcons && (
               <>
                 <ActionIcon
@@ -85,10 +109,14 @@ export default function Header({
                   onClick={onGoToWishlist}
                   count={wishlistCount}
                 />
-                <ActionIcon name="cart" ariaLabel="Cart" onClick={onGoToCart} count={cartCount} />
+                <ActionIcon
+                  name="cart"
+                  ariaLabel="Cart"
+                  onClick={onGoToCart}
+                  count={cartCount}
+                />
               </>
             )}
-            {/* Account area */}
             {user ? (
               user.role === "employee" || user.role === "admin" ? (
                 <div className="flex items-center gap-3">
@@ -105,34 +133,43 @@ export default function Header({
                   </Button>
                 </div>
               ) : (
-                <UserDropdown user={user as any} onLogout={handleLogout} onGoToPortal={handlePortal} />
+                <UserDropdown
+                  user={user as any}
+                  onLogout={handleLogout}
+                  onGoToPortal={handlePortal}
+                />
               )
             ) : (
               <GuestDropdown onSignIn={handleSignIn} onSignUp={handleSignUp} />
             )}
-            {/* Mobile menu */}
             <button
               type="button"
-              className="hidden md:hidden inline-flex items-center rounded-md border border-neutral-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-black/20"
+              className="inline-flex items-center rounded-md border border-neutral-200 px-2 py-1 text-sm focus:outline-none focus:ring-2 focus:ring-black/20 md:hidden"
               aria-expanded={mobileOpen}
               aria-controls="mobile-menu"
-              onClick={() => setMobileOpen(v => !v)}
+              onClick={toggleMobile}
             >
               Menu
             </button>
           </div>
         </div>
-        {/* Search bar (full width on md+) */}
-        <div className={`pb-3 md:pb-6 ${showSearch ? "block" : "hidden md:block"}`}>
+        <div
+          className={`pb-3 md:pb-6 ${showSearch ? "block" : "hidden md:block"}`}
+        >
           <SearchBar onSearch={onSearch} />
         </div>
-        {/* Mobile nav duplication (optional) */}
-        <div id="mobile-menu" className={`md:hidden ${mobileOpen ? "block" : "hidden"}`}>
+        <div
+          id="mobile-menu"
+          className={`md:hidden ${mobileOpen ? "block" : "hidden"}`}
+        >
           <nav aria-label="Mobile" className="border-t border-neutral-200 py-3">
             <ul className="flex flex-col gap-2 text-sm">
-              {effectiveNavItems.map(n => (
+              {effectiveNavItems.map((n) => (
                 <li key={n.key}>
-                  <Link href={n.href} className="block rounded-md px-2 py-2 font-medium hover:bg-neutral-100">
+                  <Link
+                    href={n.href}
+                    className="block rounded-md px-2 py-2 font-medium hover:bg-neutral-100"
+                  >
                     {n.label}
                   </Link>
                 </li>
@@ -144,3 +181,19 @@ export default function Header({
     </header>
   );
 }
+
+function areEqual(a: Partial<HeaderProps>, b: Partial<HeaderProps>) {
+  return (
+    a.currency === b.currency &&
+    a.cartCount === b.cartCount &&
+    a.wishlistCount === b.wishlistCount &&
+    a.onSearch === b.onSearch &&
+    a.onSelectCurrency === b.onSelectCurrency &&
+    a.onGoToCart === b.onGoToCart &&
+    a.onGoToWishlist === b.onGoToWishlist &&
+    a.onLogoClick === b.onLogoClick &&
+    a.navItems === b.navItems
+  );
+}
+
+export default memo(HeaderImpl, areEqual);

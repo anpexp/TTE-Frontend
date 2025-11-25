@@ -1,10 +1,12 @@
-export default function Badge({
-  count = 0,
-  label,
-}: {
+"use client";
+import { memo } from "react";
+
+type Props = {
   count?: number;
   label?: string;
-}) {
+};
+
+function BadgeImpl({ count = 0, label }: Props) {
   if (!count) return null;
   return (
     <span
@@ -15,3 +17,9 @@ export default function Badge({
     </span>
   );
 }
+
+function areEqual(a: Props, b: Props) {
+  return a.count === b.count && a.label === b.label;
+}
+
+export default memo(BadgeImpl, areEqual);
