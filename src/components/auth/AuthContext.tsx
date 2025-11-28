@@ -11,6 +11,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { authFetch } from "../lib/api";
 import type { UserLike as User } from "../types/user";
 
+export function getRedirectForRole(role: string | number | null | undefined): string {
+  const value = (role ?? "").toString().toLowerCase();
+  if (value === "superadmin" || value === "employee") return "/employee-portal";
+  return "/";
+}
+
 export type AuthContextType = {
   user: User | null;
   token: string | null;
