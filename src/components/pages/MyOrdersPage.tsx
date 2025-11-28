@@ -1,9 +1,10 @@
+'use client';
 // src/pages/MyOrdersPage.tsx
-import { useNavigate } from "react-router-dom";
-import OrdersTable from "../components/molecules/OrderTable";
+import { useRouter } from "next/navigation";
+import OrdersTable from "../molecules/OrderTable";
 
 export default function MyOrdersPage() {
-  const navigate = useNavigate();
+  const router = useRouter();
 
   // Demo data (replace with API later)
   const orders = [
@@ -79,7 +80,7 @@ export default function MyOrdersPage() {
 
       <OrdersTable
         orders={orders}
-        onSelect={(id) => navigate(`/my-orders/${id}`)}
+        onSelect={(id) => router.push(`/my-orders/${id}`)}
       />
     </div>
   );

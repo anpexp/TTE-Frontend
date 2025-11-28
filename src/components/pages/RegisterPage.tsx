@@ -1,11 +1,12 @@
+"use client";
 import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useAuth } from "../auth/AuthContext";
-import Input from "../components/atoms/Input";
-import Button from "../components/atoms/Button";
-import { useNavigate, useLocation } from "react-router-dom";
+import Input from "../atoms/Input";
+import Button from "../atoms/Button";
+import { useRouter, useSearchParams } from "next/navigation";
 
 const schema = z.object({
   email: z.string().email({ message: "Please enter a valid email" }),
@@ -22,9 +23,9 @@ type RegisterForm = z.infer<typeof schema>;
 
 const RegisterPage: React.FC = () => {
   const { register: registerUser, isLoading, error } = useAuth();
-  const navigate = useNavigate();
-  const location = useLocation();
-  const from = (location.state as any)?.from?.pathname;
+  const router = useRouter();
+  const search = useSearchParams();
+  const from = search?.get("from") ?? null;
   const [showPassword, setShowPassword] = useState(false);
   const {
     register,
@@ -35,7 +36,7 @@ const RegisterPage: React.FC = () => {
   const onSubmit = async (data: RegisterForm) => {
     const res = await registerUser(data.email, data.username, data.password);
     const redirect = res && (res as any).redirectTo ? (res as any).redirectTo : from || "/";
-    navigate(redirect, { replace: true });
+    router.replace(redirect);
   };
 
   return (

@@ -55,7 +55,7 @@ const writePersisted = (items: FavoriteID[]) => {
 };
 
 export function FavoritesProvider({ children }: { children: React.ReactNode }) {
-  const storeRef = useRef<InternalFavoritesStore>();
+  const storeRef = useRef<InternalFavoritesStore | null>(null);
 
   if (!storeRef.current) {
     const listeners = new Set<() => void>();

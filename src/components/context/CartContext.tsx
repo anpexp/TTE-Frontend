@@ -64,7 +64,7 @@ const isShopper = (r?: string) => (r ?? "").toLowerCase() === "shopper";
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const { user } = useAuth();
-  const storeRef = useRef<InternalCartStore>();
+  const storeRef = useRef<InternalCartStore | null>(null);
 
   if (!storeRef.current) {
     const listeners = new Set<() => void>();

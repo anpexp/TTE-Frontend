@@ -1,7 +1,10 @@
-import { useParams, Link } from "react-router-dom";
+'use client';
+import Link from "next/link";
+import { useParams } from "next/navigation";
 
 export default function OrderDetailPage() {
-  const { orderId } = useParams<{ orderId: string }>();
+  const params = useParams();
+  const orderId = (params?.orderId ?? params?.id ?? "").toString();
 
   // Mock data
   const order = {
@@ -18,7 +21,7 @@ export default function OrderDetailPage() {
 
   return (
     <div className="p-8 bg-gray-50 min-h-screen">
-      <Link to="/my-orders" className="text-blue-600 hover:underline">
+      <Link href="/my-orders" className="text-blue-600 hover:underline">
         ← Back to My Orders
       </Link>
       <h1 className="text-2xl font-semibold mt-4 mb-6">Order #{order.id}</h1>

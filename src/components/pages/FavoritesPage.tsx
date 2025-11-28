@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import ProductCard, { type ProductLike } from "../components/molecules/ProductCard";
+import ProductCard, { type ProductLike } from "../molecules/ProductCard";
 import { useFavorites } from "../context/FavoritesContext";
 import { ProductService, type ProductDetail } from "../lib/ProductService";
 

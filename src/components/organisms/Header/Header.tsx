@@ -152,7 +152,7 @@ function HeaderImpl({
               </>
             )}
             {user ? (
-              user.role === "employee" || user.role === "admin" ? (
+              roleStr === "employee" || roleStr === "superadmin" ? (
                 <div className="flex items-center gap-3">
                   <span className="text-sm text-neutral-900">{user.name}</span>
                   <button
