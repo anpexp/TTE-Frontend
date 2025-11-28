@@ -14,7 +14,6 @@ import Button from "../../atoms/Button";
 import { useAuth } from "@/components/auth/AuthContext";
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
-import { memo } from "react";
 import { useFavoritesCount } from "@/components/context/FavoritesContext";
 
 const AutoWishlistActionIcon = memo(({ onClick }: { onClick?: () => void }) => {

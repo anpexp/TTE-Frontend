@@ -1,43 +1,59 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import axios from 'axios'
-import { HttpClient } from '../src/lib/HttpClient'
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import axios, { type AxiosInstance } from "axios";
+import { HttpClient } from "@/components/lib/HttpClient";
+import { mockBrowserStorage } from "../../tests/test-utils";
 
-// Mock axios
-vi.mock('axios')
-const mockedAxios = vi.mocked(axios)
+vi.mock("axios");
+const mockedAxios = vi.mocked(axios);
 
-// Mock environment variables
-vi.mock('import.meta.env', () => ({
-  VITE_API_BASE_URL: 'https://localhost:7101/api'
-}))
+describe("HttpClient", () => {
+  let axiosInstance: AxiosInstance;
+  let restore: () => void;
 
-describe('HttpClient', () => {
   beforeEach(() => {
-    vi.clearAllMocks()
-    // Reset singleton
-    HttpClient['_instance'] = null
+    const browser = mockBrowserStorage();
+    restore = browser.restore;
 
-    // Create mock axios instance
-    const mockAxiosInstance = {
+    vi.resetModules();
+    (HttpClient as unknown as { _instance: any })._instance = null;
+    process.env.NEXT_PUBLIC_API_URL = "https://localhost:7101/api";
+
+    axiosInstance = {
       defaults: {
-        baseURL: 'https://localhost:7101/api',
+        baseURL: "https://localhost:7101/api",
         headers: { "Content-Type": "application/json" },
-        timeout: 10000
-      }
-    }
+        timeout: 10000,
+      },
+      interceptors: {
+        request: { use: vi.fn(), eject: vi.fn() },
+        response: { use: vi.fn(), eject: vi.fn() },
+      },
+    } as unknown as AxiosInstance;
 
-    // Mock axios.create
-    mockedAxios.create = vi.fn().mockReturnValue(mockAxiosInstance)
-  })
+    mockedAxios.create.mockReturnValue(axiosInstance);
+  });
 
-  it('should create a singleton instance', () => {
-    const instance1 = HttpClient.instance
-    const instance2 = HttpClient.instance
-    expect(instance1).toBe(instance2)
-  })
+  afterEach(() => {
+    restore();
+  });
 
-  it('should have correct baseURL', () => {
-    const instance = HttpClient.instance
-    expect(instance.defaults.baseURL).toBe('https://localhost:7101/api')
-  })
-})
+  it("creates a singleton axios instance with the configured base URL", () => {
+    const first = HttpClient.instance;
+    const second = HttpClient.instance;
+
+    expect(mockedAxios.create).toHaveBeenCalledTimes(1);
+    expect(first).toBe(second);
+    expect(first.defaults.baseURL).toBe("https://localhost:7101/api");
+  });
+
+  it("strips trailing slashes from the API root", () => {
+    process.env.NEXT_PUBLIC_API_URL = "https://localhost:7101/api/";
+    (HttpClient as unknown as { _instance: any })._instance = null;
+
+    HttpClient.instance;
+
+    expect(mockedAxios.create).toHaveBeenCalledWith(
+      expect.objectContaining({ baseURL: "https://localhost:7101/api" })
+    );
+  });
+});
